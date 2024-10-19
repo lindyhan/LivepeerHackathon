@@ -1,101 +1,210 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+export default function HomePage() {
+  const [objectName, setObjectName] = useState('');
+  const [error, setError] = useState('');
+  const [imageSrc, setImageSrc] = useState('');
+  const [level, setLevel] = useState(1);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [levelLoading, setLevelLoading] = useState(false);
+  const [correctAnswer, setCorrectAnswer] = useState(0);
+  const [userGuess, setUserGuess] = useState<number | null>(null);
+  const [found, setFound] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const [isGameOver, setIsGameOver] = useState(false); // Track game over state
+  const [incorrectAnswerMessage, setIncorrectAnswerMessage] = useState(''); // Message for incorrect answer
+
+  const gatewayUrl = "https://dream-gateway.livepeer.cloud/text-to-image";
+  const modelId = "SG161222/RealVisXL_V4.0_Lightning";
+
+  const objectOptions = ['Monster', 'Llama', 'Penguin'];
+
+  const handleObjectSelect = (name: string) => {
+    setObjectName(name);
+    setError('');
+  };
+
+  const handleSubmit = async () => {
+    if (!objectName) {
+      setError('Please select an object.');
+      return;
+    }
+
+    setLoading(true);
+    const randomItemCount = Math.floor(Math.random() * 11);
+    setCorrectAnswer(randomItemCount);
+
+    try {
+      const response = await axios.post(gatewayUrl, {
+        model_id: modelId,
+        prompt: `A quirky, whimsical, colorful scene in Singapore style with ${randomItemCount} hidden ${objectName}(s), Michael Ryba style`,
+        width: 512,
+        height: 512
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('API Response:', response.data);
+
+      if (response.data && response.data.images && response.data.images.length > 0) {
+        setImageSrc(response.data.images[0].url);
+        setTimeout(() => setShowControls(true), 2000); // Delay dropdown/button by 2 seconds
+      } else {
+        setError('Image generation failed. Please try again.');
+      }
+
+      setIsPlaying(true);
+      setTimeLeft(30 - (level - 1) * 5); // Decrease timer by 5 seconds for each level
+      setFound(false);
+      setUserGuess(null); // Reset user guess for each stage
+      setIsGameOver(false); // Reset game over state
+      setIncorrectAnswerMessage(''); // Reset incorrect answer message
+    } catch (error) {
+      console.error('Error generating image:', error);
+      setError('Error generating image. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (timeLeft > 0 && isPlaying) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0) {
+      setIsPlaying(false);
+      setIsGameOver(true); // Set game over state
+      setIncorrectAnswerMessage(`Time out. Congrats, you completed ${level - 1} levels!`);
+    }
+  }, [timeLeft, isPlaying]);
+
+  const handleNextLevel = async () => {
+    setLevelLoading(true);
+    setLevel(level + 1);
+    await handleSubmit();
+    setLevelLoading(false);
+  };
+
+  const handleRetry = () => {
+    // Reset all states for a new game
+    setLevel(1);
+    setTimeLeft(30);
+    setImageSrc('');
+    setObjectName('');
+    setIsPlaying(false);
+    setUserGuess(null); // Reset guess on retry
+    setError('');
+    setFound(false);
+    setShowControls(false); // Reset controls visibility
+    setIsGameOver(false); // Reset game over state
+    setIncorrectAnswerMessage(''); // Reset incorrect answer message
+  };
+
+  const handleGuessChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setUserGuess(parseInt(e.target.value, 10));
+  };
+
+  const checkAnswer = () => {
+    if (userGuess === correctAnswer) {
+      setFound(true);
+      setIsPlaying(false);
+    } else {
+      setIncorrectAnswerMessage(`That is not correct. Correct answer: ${correctAnswer}. Congrats, you have completed ${level} levels!`);
+      setIsGameOver(true); // Set game over state
+      setIsPlaying(false);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="main-container">
+      <header>
+        <h1 className="title">Find It Fast!</h1>
+      </header>
+      {!isPlaying && !found && !isGameOver && (
+        <div className="start-section">
+          <p className="instructions">Select an object and start the game.</p>
+          <div className="radio-group">
+            {objectOptions.map((option) => (
+              <label key={option} className="radio-label">
+                <input 
+                  type="radio" 
+                  name="object" 
+                  value={option} 
+                  onChange={() => handleObjectSelect(option)} 
+                  className="radio-input"
+                  required // Ensure selection is required
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+          {error && <p className="error">{error}</p>}
+          <button onClick={handleSubmit} className="start-btn">Start</button>
+          {loading && <p className="loading">Generating image...</p>}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+
+      {isPlaying && (
+        <div className="game-section">
+          <div className="game-header">
+            <div className="level-info">Level: {level}</div>
+            <div className="timer-info">Time Left: {timeLeft} seconds</div>
+          </div>
+          <div className="image-container">
+            {loading ? (
+              <p className="loading">Loading...</p>
+            ) : (
+              <>
+                <img
+                  src={imageSrc}
+                  alt="Generated scene"
+                  className="game-image"
+                />
+                {showControls && (
+                  <div className="guess-section">
+                    <label htmlFor="item-guess">How many {objectName}(s) do you see?</label>
+                    <select
+                      id="item-guess"
+                      onChange={handleGuessChange}
+                      value={userGuess || ''}
+                      className="dropdown"
+                    >
+                      <option value="" disabled>Select number</option>
+                      {[...Array(11).keys()].map((num) => (
+                        <option key={num} value={num}>{num}</option>
+                      ))}
+                    </select>
+                    <button onClick={checkAnswer} className="submit-btn">Submit</button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {found && (
+        <div className="next-level-section">
+          <p className="congrats-msg">Congrats, you found the correct number of {objectName}(s)!</p>
+          <button onClick={handleNextLevel} className="next-btn">
+            {levelLoading ? 'Generating next level...' : 'Advance to Next Level'}
+          </button>
+        </div>
+      )}
+
+      {isGameOver && (
+        <div className="retry-section">
+          <p className="failure-msg">{incorrectAnswerMessage}</p>
+          <button onClick={handleRetry} className="retry-btn">Try Again</button>
+        </div>
+      )}
     </div>
   );
 }

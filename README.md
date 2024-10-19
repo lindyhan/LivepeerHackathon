@@ -1,3 +1,8 @@
+Simple game using AI generated images. Model from Livepeer. Sometimes the answers are not correct because the model is still under training.
+
+https://github.com/user-attachments/assets/96d7e85a-5d14-453b-bff2-833cdaac3235
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
